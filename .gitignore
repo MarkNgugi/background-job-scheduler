@@ -1,0 +1,23 @@
+# Executables
+*.exe
+*.out
+*.test
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Temporary files
+tmp/
+temp/
