@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
@@ -8,6 +9,7 @@ import (
 
 	"background-job-scheduler/internal/api"
 	"background-job-scheduler/internal/database"
+	"background-job-scheduler/internal/scheduler"
 )
 
 func main() {
@@ -31,6 +33,34 @@ func main() {
 		log.Fatalf("Database migration failed: %v", err)
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Create the scheduler.
+	jobScheduler := scheduler.New(db, time.Second, 10)
+
+	// Start the scheduler in the background.
+	go jobScheduler.Start(ctx)
+
+	// Temporary queue consumer.
+	// Step 5 will replace this with real workers.
+	go func() {
+		for {
+			select {
+			case job := <-jobScheduler.Jobs():
+				log.Printf(
+					"TEMPORARY CONSUMER: Received job ID=%d, Name=%s, Type=%s",
+					job.ID,
+					job.Name,
+					job.Type,
+				)
+
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
 	handler := api.NewServer(db)
 
 	server := &http.Server{
@@ -42,8 +72,9 @@ func main() {
 	log.Println("======================================")
 	log.Println(" Background Job Scheduler API")
 	log.Println("======================================")
-	log.Printf("Database: %s\n", dbPath)
-	log.Printf("Server running at http://localhost:%s\n", port)
+	log.Printf("Database: %s", dbPath)
+	log.Printf("Server running at http://localhost:%s", port)
+	log.Println("Scheduler polling every second")
 	log.Println("Health: GET /health")
 	log.Println("Jobs:   /api/v1/jobs")
 
